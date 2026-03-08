@@ -1,0 +1,111 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  BACKEND_IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/rag-backend
+  FRONTEND_IMAGE: gcr.io/${{ secrets.GCP_PROJECT_ID }}/rag-frontend
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          # pytest tests/ -v
+          echo "Backend tests placeholder - add pytest in F1+"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run frontend lint
+        run: |
+          cd frontend
+          npm run lint
+
+  build-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io --quiet
+
+      - name: Build and push backend image
+        run: |
+          docker build -t $BACKEND_IMAGE:$GITHUB_SHA -t $BACKEND_IMAGE:latest ./backend
+          docker push $BACKEND_IMAGE:$GITHUB_SHA
+          docker push $BACKEND_IMAGE:latest
+
+      - name: Build and push frontend image
+        run: |
+          docker build -t $FRONTEND_IMAGE:$GITHUB_SHA -t $FRONTEND_IMAGE:latest ./frontend
+          docker push $FRONTEND_IMAGE:$GITHUB_SHA
+          docker push $FRONTEND_IMAGE:latest
+
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: build-push
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy backend to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: rag-backend
+          image: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          region: us-central1
+          env_vars: |
+            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
+            MISTRAL_API_KEY=${{ secrets.MISTRAL_API_KEY }}
+            QDRANT_URL=${{ secrets.QDRANT_URL }}
+            DEFAULT_PROVIDER=groq
+
+      - name: Deploy frontend to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: rag-frontend
+          image: ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          region: us-central1
+          env_vars: |
+            NEXT_PUBLIC_API_URL=${{ secrets.BACKEND_URL }}
