@@ -2,7 +2,7 @@
 import os
 from uuid import uuid4
 import aiofiles
-from fastapi import APIRouter, File, UploadFile, Body, HTTPException
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from app.schemas import UploadResponse, DocumentMeta, DeleteResponse
 from app.ingestion.loader import load_documents
 from app.ingestion.chunker import chunk_documents
@@ -15,7 +15,7 @@ async def list_documents():
     return get_all_documents()
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(None), url: str = Body(None, embed=True)):
+async def upload_document(file: UploadFile = File(None), url: str = Form(None)):
     if not file and not url:
         raise HTTPException(status_code=400, detail="No file or URL provided")
     doc_id = str(uuid4())
