@@ -29,6 +29,7 @@ llama-index-readers-file>=0.1.0
 llama-index-readers-web>=0.1.0
 pypdf>=4.0.0
 python-docx>=1.1.0
+docx2txt>=0.8
 
 # Embeddings
 sentence-transformers>=3.0.0

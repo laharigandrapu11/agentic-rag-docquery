@@ -313,8 +313,10 @@ agentic-rag-docquery/
 
    ```bash
    cp backend/.env.example backend/.env
-   cp frontend/.env.local.example frontend/.env.local
+   touch frontend/.env.local
    ```
+
+   Open `backend/.env` and fill in your API keys for Groq, Gemini, and Mistral.
 
 3. Start all services:
 
@@ -333,16 +335,16 @@ agentic-rag-docquery/
 
 ## API Reference
 
-| Method | Endpoint              | Description                                              |
-|--------|-----------------------|----------------------------------------------------------|
-| GET    | /health               | Service health, Qdrant status, available providers       |
-| POST   | /upload               | Upload a document or submit a URL for indexing           |
-| GET    | /documents            | List all indexed documents                               |
-| DELETE | /documents/{doc_id}   | Remove a document and its vectors from Qdrant            |
-| POST   | /query                | Ask a question; SSE stream of token and hop_trace events |
-| POST   | /summarize            | Summarize a specific document                            |
-| POST   | /compare              | Compare content across multiple indexed documents        |
-| POST   | /switch-provider      | Set the active LLM provider for the current session      |
+| Method | Endpoint                  | Description                                              |
+|--------|---------------------------|----------------------------------------------------------|
+| GET    | /health                   | Service health check                                     |
+| POST   | /api/upload               | Upload a file (multipart) or submit a URL for indexing   |
+| GET    | /api/documents            | List all indexed documents                               |
+| DELETE | /api/documents/{doc_id}   | Remove a document and all its vectors from Qdrant        |
+| POST   | /api/query                | Ask a question; SSE stream of token and hop_trace events |
+| POST   | /api/summarize            | Summarize a specific document                            |
+| POST   | /api/compare              | Compare content across multiple indexed documents        |
+| POST   | /api/switch-provider      | Set the active LLM provider for the current session      |
 
 Full interactive documentation is available at /docs.
 
