@@ -17,3 +17,12 @@ class UploadResponse(BaseModel):
 class DeleteResponse(BaseModel):
     doc_id: str
     deleted: bool
+
+class QueryRequest(BaseModel):
+    question: str
+    provider:str = "groq"
+    top_k: int = 5
+
+class QueryResponse(BaseModel):
+    answer: str
+    sources: list[dict]
