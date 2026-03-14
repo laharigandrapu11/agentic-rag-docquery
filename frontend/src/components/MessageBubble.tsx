@@ -1,17 +1,38 @@
-// Populated in F2 - Basic Q&A
-// Renders a single chat message — right-aligned for user, left-aligned for assistant
+// Renders a single chat message bubble.
+// User messages are right-aligned; assistant messages are left-aligned.
+// For assistant messages, [Source N] markers are highlighted as badges.
+
+import { CitationChunk } from "@/lib/api"
+import SourceCitation from "@/components/SourceCitation"
 
 interface MessageBubbleProps {
     role: "user" | "assistant"
     content: string
+    citations?: CitationChunk[]  // only present on assistant messages
 }
 
-// Displays one message bubble with different styles depending on who sent it
-export default function MessageBubble({ role, content }: MessageBubbleProps) {
+// Converts [Source N] markers in text into highlighted badge spans
+function renderWithCitations(text: string) {
+    const parts = text.split(/(\[Source \d+\])/g)
+    return parts.map((part, i) =>
+        /^\[Source \d+\]$/.test(part) ? (
+            <span
+                key={i}
+                className="inline-block bg-primary/15 text-primary text-[10px] font-semibold px-1.5 py-0.5 rounded mx-0.5 align-middle"
+            >
+                {part}
+            </span>
+        ) : (
+            <span key={i}>{part}</span>
+        )
+    )
+}
+
+export default function MessageBubble({ role, content, citations = [] }: MessageBubbleProps) {
     const isUser = role === "user"
 
     return (
-        <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+        <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
             <div
                 className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                     isUser
@@ -19,8 +40,16 @@ export default function MessageBubble({ role, content }: MessageBubbleProps) {
                         : "bg-muted text-foreground rounded-bl-sm"
                 }`}
             >
-                {content}
+                {/* For assistant messages, render [Source N] as styled badges */}
+                {isUser ? content : renderWithCitations(content)}
             </div>
+
+            {/* Source citations panel below assistant messages */}
+            {!isUser && citations.length > 0 && (
+                <div className="max-w-[75%] w-full">
+                    <SourceCitation citations={citations} />
+                </div>
+            )}
         </div>
     )
 }
