@@ -26,3 +26,10 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: list[dict]
+
+class CitationChunk(BaseModel):
+    doc_id: str
+    source: str      # filename
+    page: str        # page number as string (PDFs return it as string)
+    chunk_index: int
+    text: str        # the actual chunk text shown in the citation panel

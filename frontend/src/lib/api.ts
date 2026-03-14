@@ -63,28 +63,57 @@ export interface QueryRequest {
     top_k?: number     // how many chunks to retrieve, defaults to 5
 }
 
-// A single retrieved chunk returned alongside the answer
-export interface ChunkSource {
+// A single citation chunk streamed back after the answer tokens
+export interface CitationChunk {
     doc_id: string
-    source: string
-    page: number
+    source: string   // filename
+    page: string     // page number as string
     chunk_index: number
-    text: string
+    text: string     // the actual chunk text shown in the citation panel
 }
 
-// Shape of the response from POST /query
-export interface QueryResponse {
-    answer: string
-    sources: ChunkSource[]
-}
-
-// Sends a question to the backend and returns the answer + source chunks
-export async function sendQuery(req: QueryRequest): Promise<QueryResponse> {
+// Streams the answer token by token from POST /query (SSE).
+// onToken   — called for each word/token as it arrives
+// onCitation — called for each source citation after the answer
+// onDone    — called once the stream is fully complete
+export async function streamQuery(
+    request: QueryRequest,
+    onToken: (token: string) => void,
+    onCitation: (c: CitationChunk) => void,
+    onDone: () => void,
+) {
     const res = await fetch(BASE_URL + "/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req),
+        body: JSON.stringify(request),
     })
+
     if (!res.ok) throw new Error(await res.text())
-    return res.json()
+
+    // res.body is a ReadableStream of raw bytes — we read it chunk by chunk
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        // Decode incoming bytes and add to buffer
+        buffer += decoder.decode(value, { stream: true })
+
+        // SSE events are separated by "\n\n" — split and process complete ones
+        const events = buffer.split("\n\n")
+        // The last element may be an incomplete event — keep it in the buffer
+        buffer = events.pop() ?? ""
+
+        for (const event of events) {
+            if (!event.startsWith("data: ")) continue
+            const data = JSON.parse(event.slice(6))  // strip "data: " prefix (6 chars)
+
+            if (data.type === "token") onToken(data.content)
+            else if (data.type === "citation") onCitation(data as CitationChunk)
+            else if (data.type === "done") onDone()
+        }
+    }
 }
