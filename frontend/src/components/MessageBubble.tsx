@@ -1,14 +1,17 @@
 // Renders a single chat message bubble.
 // User messages are right-aligned; assistant messages are left-aligned.
 // For assistant messages, [Source N] markers are highlighted as badges.
+// Extended in F4 - shows HopTrace reasoning chain above citations.
 
-import { CitationChunk } from "@/lib/api"
+import { CitationChunk, HopTraceEvent } from "@/lib/api"
 import SourceCitation from "@/components/SourceCitation"
+import HopTrace from "@/components/HopTrace"
 
 interface MessageBubbleProps {
     role: "user" | "assistant"
     content: string
-    citations?: CitationChunk[]  // only present on assistant messages
+    citations?: CitationChunk[]     // only present on assistant messages
+    hopTraces?: HopTraceEvent[]     // reasoning chain steps, F4+
 }
 
 // Converts [Source N] markers in text into highlighted badge spans
@@ -28,7 +31,7 @@ function renderWithCitations(text: string) {
     )
 }
 
-export default function MessageBubble({ role, content, citations = [] }: MessageBubbleProps) {
+export default function MessageBubble({ role, content, citations = [], hopTraces = [] }: MessageBubbleProps) {
     const isUser = role === "user"
 
     return (
@@ -43,6 +46,9 @@ export default function MessageBubble({ role, content, citations = [] }: Message
                 {/* For assistant messages, render [Source N] as styled badges */}
                 {isUser ? content : renderWithCitations(content)}
             </div>
+
+            {/* Reasoning chain — shown before citations, only on assistant messages */}
+            {!isUser && <HopTrace traces={hopTraces} />}
 
             {/* Source citations panel below assistant messages */}
             {!isUser && citations.length > 0 && (

@@ -93,30 +93,18 @@ FastAPI Backend  (port 8000)
 
 ### LangGraph Agent Flow
 
+![LangGraph Agent Flow](docs/langgraph-flow.png)
+
+The router classifies the question as simple or complex using a small fast model.
+Complex questions go through the decomposer which breaks them into 2-4
+sub-questions — each retrieved independently from Qdrant and deduplicated.
+The retrieved chunks are passed back to `query.py` where the synthesizer streams
+the final answer with inline citations. Synthesis happens outside the graph to
+preserve SSE token streaming.
+
 ```
-User Query
-     |
-     v
-  [Router]
-  /       \
-simple   complex
-  |           |
-  |       [Decomposer]
-  |       sub-questions
-  \           /
-    [RAG Retrieve]
-    Qdrant top-k chunks
-          |
-          v
-     [Synthesize]
-     /     |      \
-[Sum] [Compare]  [Done]
-   \      /         |
-    \    /      Answer + Citations
-     \  /              |
-      \/               v
-   Answer       SSE Stream to UI
-  + Citations   (tokens + hop_trace)
+START → [router] → simple  → [rag_retrieve] → END → stream answer
+                 → complex → [decomposer] → [rag_retrieve] → END → stream answer
 ```
 
 ### CI/CD Pipeline
@@ -234,6 +222,37 @@ queries at the cost of additional latency.
 The API has no authentication layer. A production deployment serving multiple
 users requires API key validation or an OAuth integration.
 
+### Agent model tiering
+
+The router node (simple vs complex classification) uses `llama-3.1-8b-instant`
+while the decomposer and synthesizer use `llama-3.3-70b-versatile`. Routing is
+a binary classification over a single sentence — a small model handles it with
+the same accuracy as a large one at a fraction of the token cost and latency.
+The decomposer and synthesizer use the full model because decomposition quality
+directly determines retrieval quality, and synthesis requires multi-document
+reasoning with accurate citation placement.
+
+The tradeoff is a small increase in code complexity (`small_model` parameter
+in `llm_factory.py`). At scale, the router call fires on every single request,
+so keeping it cheap and fast compounds meaningfully.
+
+### LLM model selection per provider
+
+The specific models chosen for each provider reflect free-tier availability and
+speed/quality balance:
+
+- **Groq routing**: `llama-3.1-8b-instant` - binary classification needs almost
+  no reasoning capacity; the 8B model is sufficient and responds near-instantly.
+- **Groq synthesis/decomposition**: `llama-3.3-70b-versatile` - used where
+  quality matters: writing precise sub-questions and synthesizing multi-source
+  answers with accurate citations.
+- **Gemini routing + synthesis**: both use `gemini-2.0-flash` - Flash is already
+  Google's speed/cost-optimised tier. `gemini-1.5-pro` is paid-only as of 2026.
+- **Mistral routing**: `mistral-small-latest` - adequate for classification,
+  significantly cheaper than Large.
+- **Mistral synthesis/decomposition**: `mistral-large-latest` - strong
+  instruction following for decomposition and citation-aware synthesis.
+
 ---
 
 ## Project Structure
@@ -258,7 +277,7 @@ agentic-rag-docquery/
 │   │   │   └── retriever.py          # LangChain Qdrant retriever
 │   │   ├── agent/
 │   │   │   ├── graph.py              # LangGraph StateGraph
-│   │   │   ├── nodes.py              # router, decomposer, rag, synthesize
+│   │   │   ├── nodes.py              # router_node, decomposer_node, rag_retrieve_node
 │   │   │   ├── tools.py              # RAG, summarize, compare tools
 │   │   │   ├── memory.py             # SQLite session memory
 │   │   │   └── prompts.py            # prompt templates
@@ -285,6 +304,8 @@ agentic-rag-docquery/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml
+├── docs/
+│   └── langgraph-flow.png            # LangGraph agent flow diagram
 ├── docker-compose.yml
 └── README.md
 ```

@@ -2,9 +2,10 @@
 
 // Full chat panel: message history + streaming assistant answers + citations
 // Extended in F3 — tokens stream in live, citations appear after the answer
+// Extended in F4 — hop_trace events build up the reasoning chain in real time
 
 import { useState, useRef, useEffect } from "react"
-import { streamQuery, CitationChunk } from "@/lib/api"
+import { streamQuery, CitationChunk, HopTraceEvent } from "@/lib/api"
 import MessageBubble from "@/components/MessageBubble"
 
 // A single message in the conversation history
@@ -12,6 +13,7 @@ interface Message {
     role: "user" | "assistant"
     content: string
     citations: CitationChunk[]
+    hopTraces: HopTraceEvent[]  // reasoning chain steps collected during streaming
 }
 
 export default function ChatInterface() {
@@ -32,13 +34,13 @@ export default function ChatInterface() {
         if (!question || loading) return
 
         // Add user message immediately so the UI feels responsive
-        setMessages((prev) => [...prev, { role: "user", content: question, citations: [] }])
+        setMessages((prev) => [...prev, { role: "user", content: question, citations: [], hopTraces: [] }])
         setInput("")
         setLoading(true)
         setError(null)
 
         // Add an empty assistant bubble that will be filled token by token
-        setMessages((prev) => [...prev, { role: "assistant", content: "", citations: [] }])
+        setMessages((prev) => [...prev, { role: "assistant", content: "", citations: [], hopTraces: [] }])
 
         try {
             await streamQuery(
@@ -66,6 +68,18 @@ export default function ChatInterface() {
                 },
                 // onDone — stream finished
                 () => setLoading(false),
+                // onHopTrace — append each reasoning step to the assistant message
+                (hop) => {
+                    setMessages((prev) => {
+                        const updated = [...prev]
+                        const last = updated[updated.length - 1]
+                        updated[updated.length - 1] = {
+                            ...last,
+                            hopTraces: [...last.hopTraces, hop],
+                        }
+                        return updated
+                    })
+                },
             )
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong")
@@ -89,6 +103,7 @@ export default function ChatInterface() {
                         role={msg.role}
                         content={msg.content}
                         citations={msg.citations}
+                        hopTraces={msg.hopTraces}
                     />
                 ))}
                 {/* Show "Thinking…" only while waiting for the first token */}
