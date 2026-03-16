@@ -3,10 +3,12 @@
 // Full chat panel: message history + streaming assistant answers + citations
 // Extended in F3 — tokens stream in live, citations appear after the answer
 // Extended in F4 — hop_trace events build up the reasoning chain in real time
+// Extended in F5 — provider selector lets user switch LLM mid-session
 
 import { useState, useRef, useEffect } from "react"
-import { streamQuery, CitationChunk, HopTraceEvent } from "@/lib/api"
+import { streamQuery, CitationChunk, HopTraceEvent, switchProvider } from "@/lib/api"
 import MessageBubble from "@/components/MessageBubble"
+import ProviderSelector from "@/components/ProviderSelector"
 
 // A single message in the conversation history
 interface Message {
@@ -21,6 +23,20 @@ export default function ChatInterface() {
     const [input, setInput] = useState("")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    // Tracks which LLM provider is selected — sent with every query request
+    const [provider, setProvider] = useState("groq")
+
+    // Called when the user clicks a provider button.
+    // Notifies the backend so its in-memory default stays in sync,
+    // and updates local state so subsequent queries use the new provider.
+    async function handleProviderChange(p: string) {
+        setProvider(p)
+        try {
+            await switchProvider(p)
+        } catch {
+            // non-fatal — local state still updated, query will pass provider explicitly
+        }
+    }
 
     // Auto-scroll to the bottom after each message update
     const bottomRef = useRef<HTMLDivElement>(null)
@@ -44,7 +60,7 @@ export default function ChatInterface() {
 
         try {
             await streamQuery(
-                { question },
+                { question, provider },
                 // onToken — append each new token to the last (assistant) message
                 (token) => {
                     setMessages((prev) => {
@@ -89,6 +105,13 @@ export default function ChatInterface() {
 
     return (
         <div className="flex flex-col h-[600px] border rounded-xl bg-card overflow-hidden">
+
+            {/* Provider switcher pinned to the top of the chat panel */}
+            <div className="border-b px-4 py-2 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Model</span>
+                {/* Disabled while a query is loading to prevent mid-stream provider changes */}
+                <ProviderSelector provider={provider} onChange={handleProviderChange} disabled={loading} />
+            </div>
 
             {/* Scrollable message history */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">

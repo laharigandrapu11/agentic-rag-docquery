@@ -2,8 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.documents import router as documents_router
 from app.api.query import router as query_router
-
+from app.api.provider import router as provider_router
 from app.core.config import settings
+from app.core.llm_factory import MODELS
 
 app = FastAPI(
     title="Agentic RAG DocQuery",
@@ -20,12 +21,15 @@ app.add_middleware(
 )
 
 app.include_router(documents_router, prefix="/api", tags=["Documents"])
-
+app.include_router(provider_router, prefix="/api", tags=["Provider"])
 app.include_router(query_router, prefix="/api", tags=["Query"])
+
 
 @app.get("/health", tags=["Health"])
 async def health():
     return {
         "status": "ok",
         "version": "0.1.0",
+        "available_providers": list(MODELS.keys()),
+        "default_provider": settings.default_provider,
     }
