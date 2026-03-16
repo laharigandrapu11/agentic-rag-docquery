@@ -7,7 +7,7 @@ from langchain_groq import ChatGroq
 # Model tiers per provider
 # small_model=True  → small/fast model (used by router node only)
 # small_model=False → full model (used by decomposer + synthesizer)
-_MODELS = {
+MODELS = {
     "groq":    ("llama-3.1-8b-instant",   "llama-3.3-70b-versatile"),
     "gemini":  ("gemini-2.0-flash",        "gemini-2.0-flash"),
     "mistral": ("mistral-small-latest",    "mistral-large-latest"),
@@ -22,10 +22,10 @@ def get_llm(provider: str | None = None, small_model: bool = False):
     """
     provider = (provider or settings.default_provider).lower()
 
-    if provider not in _MODELS:
+    if provider not in MODELS:
         raise ValueError(f"Unsupported provider: {provider!r}. Choose groq, gemini, or mistral.")
 
-    small, full = _MODELS[provider]
+    small, full = MODELS[provider]
     model = small if small_model else full
 
     if provider == "groq":

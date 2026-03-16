@@ -128,3 +128,32 @@ export async function streamQuery(
         }
     }
 }
+
+// --- Provider switching ---
+
+// Describes the response shape from GET /providers
+export interface ProvidersResponse {
+    available: string[]  // all providers the backend knows about e.g. ["groq", "gemini", "mistral"]
+    active: string       // whichever provider is currently selected e.g. "groq"
+}
+
+// Fetches the list of available LLM providers and which one is currently active.
+// Used by ProviderSelector on mount to highlight the correct button.
+export async function getProviders(): Promise<ProvidersResponse> {
+    const res = await fetch(BASE_URL + "/providers")
+    if (!res.ok) throw new Error(await res.text())
+    return res.json()
+}
+
+// Tells the backend to switch to a different LLM provider.
+// The backend updates its in-memory active provider so all future /query
+// calls that don't explicitly pass a provider use this new default.
+export async function switchProvider(provider: string): Promise<{ active: string }> {
+    const res = await fetch(BASE_URL + "/switch-provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+    })
+    if (!res.ok) throw new Error(await res.text())
+    return res.json()
+}
