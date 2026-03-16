@@ -2,7 +2,7 @@
 
 // Shows all uploaded documents. Re-fetches when refreshTrigger changes.
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { getDocuments, deleteDocument, DocumentMeta } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,7 +21,7 @@ export default function DocumentList({ refreshTrigger, selectedIds, onSelectionC
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  async function fetchDocs() {
+  const fetchDocs = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -33,7 +33,7 @@ export default function DocumentList({ refreshTrigger, selectedIds, onSelectionC
     } finally {
       setLoading(false)
     }
-  }
+  }, [onDocumentsLoaded])
 
   function toggleSelect(doc_id: string) {
     if (selectedIds.includes(doc_id)) {
@@ -43,7 +43,7 @@ export default function DocumentList({ refreshTrigger, selectedIds, onSelectionC
     }
   }
 
-  useEffect(() => { fetchDocs() }, [refreshTrigger])
+  useEffect(() => { fetchDocs() }, [refreshTrigger, fetchDocs])
 
   async function handleDelete(docId: string) {
     setDeletingId(docId)

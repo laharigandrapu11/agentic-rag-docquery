@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # Qdrant
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection_name: str = "documents"
+    qdrant_api_key: str = ""
 
     # Embeddings
     embedding_model: str = "all-MiniLM-L6-v2"
