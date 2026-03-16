@@ -52,9 +52,9 @@ export default function Home() {
           />
         </div>
 
-        {/* Right column: chat interface to ask questions about the documents */}
+        {/* Right column: chat interface — scoped to selected docs if any are checked */}
         <div className="flex-1">
-          <ChatInterface />
+          <ChatInterface docIds={selectedIds} />
         </div>
 
       </main>

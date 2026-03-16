@@ -20,8 +20,10 @@ class DeleteResponse(BaseModel):
 
 class QueryRequest(BaseModel):
     question: str
-    provider:str = "groq"
+    provider: str = "groq"
     top_k: int = 5
+    session_id: str | None = None
+    doc_ids: list[str] | None = None  # if set, retrieval is scoped to only these documents
 
 class QueryResponse(BaseModel):
     answer: str
