@@ -3,8 +3,8 @@
 from langchain_core.prompts import PromptTemplate
 
 from app.core.llm_factory import get_llm
-from app.agent.tools import rag_search
-from app.agent.prompts import ROUTER_PROMPT, DECOMPOSER_PROMPT
+from app.agent.tools import rag_search, get_doc_chunks, filtered_rag_search
+from app.agent.prompts import ROUTER_PROMPT, DECOMPOSER_PROMPT, SUMMARIZE_MAP_PROMPT
 
 
 def router_node(state: dict) -> dict:
@@ -98,5 +98,59 @@ def rag_retrieve_node(state: dict) -> dict:
         "retrieved_chunks": retrieved,
         "hop_traces": state.get("hop_traces", []) + [
             {"node": "rag_retrieve", "data": {"chunks_found": len(retrieved)}}
+        ],
+    }
+
+
+def map_summarize_node(state: dict) -> dict:
+    """Fetch all chunks for doc_id and summarize each batch with the small model.
+    Batches of 5 chunks are summarised independently (the map step).
+    The reduce step is streamed directly from the /summarize endpoint,
+    following the same pattern as query synthesis in /query.
+    """
+    llm = get_llm(state.get("provider", "groq"), small_model=True)
+    prompt = PromptTemplate(template=SUMMARIZE_MAP_PROMPT, input_variables=["chunks"])
+    chain = prompt | llm
+    chunks = get_doc_chunks(state["doc_id"])
+    batch_size = 5
+    chunk_summaries = []
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i: i + batch_size]
+        batch_text = "\n\n".join(
+            f"Chunk {j + 1}: {c.get('text', '')}"
+            for j, c in enumerate(batch)
+        )
+        result = chain.invoke({"chunks": batch_text})
+        chunk_summaries.append(result.content.strip())
+    return {
+        "chunks": chunks,
+        "chunk_summaries": chunk_summaries,
+        "hop_traces": state.get("hop_traces", []) + [
+            {
+                "node": "map_summarize",
+                "data": {
+                    "doc_id": state["doc_id"],
+                    "total_chunks": len(chunks),
+                    "batches": len(chunk_summaries),
+                },
+            }
+        ],
+    }
+
+    
+def compare_retrieve_node(state: dict) -> dict:
+    """Retrieve relevant chunks from each requested doc_id via filtered search."""
+    top_k = state.get("top_k", 5)
+    chunks = filtered_rag_search(state["question"], state["doc_ids"], top_k)
+    return {
+        "retrieved_chunks": chunks,
+        "hop_traces": state.get("hop_traces", []) + [
+            {
+                "node": "compare_retrieve",
+                "data": {
+                    "doc_ids": state["doc_ids"],
+                    "chunks_found": len(chunks),
+                },
+            }
         ],
     }

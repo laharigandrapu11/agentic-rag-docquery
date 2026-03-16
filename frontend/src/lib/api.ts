@@ -157,3 +157,95 @@ export async function switchProvider(provider: string): Promise<{ active: string
     if (!res.ok) throw new Error(await res.text())
     return res.json()
 }
+
+// --- Summarize and Compare (F6) ---
+
+export interface SummarizeRequest {
+    doc_id: string
+    session_id?: string
+    provider?: string
+}
+
+export interface CompareRequest {
+    doc_ids: string[]
+    question: string
+    provider?: string
+    top_k?: number
+}
+
+// Streams a document summary token by token from POST /summarize (SSE).
+// onToken    - called for each word/token as it arrives
+// onDone     - called once the stream is fully complete
+// onHopTrace - called when the map step completes (optional)
+export async function streamSummarize(
+    request: SummarizeRequest,
+    onToken: (token: string) => void,
+    onDone: () => void,
+    onHopTrace?: (h: HopTraceEvent) => void,
+) {
+    const res = await fetch(BASE_URL + "/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+    })
+    if (!res.ok) throw new Error(await res.text())
+
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const events = buffer.split("\n\n")
+        buffer = events.pop() ?? ""
+        for (const event of events) {
+            if (!event.startsWith("data: ")) continue
+            const data = JSON.parse(event.slice(6))
+            if (data.type === "token") onToken(data.content)
+            else if (data.type === "hop_trace") onHopTrace?.({ node: data.node, data: data.data })
+            else if (data.type === "done") onDone()
+        }
+    }
+}
+
+// Streams a cross-document comparison from POST /compare (SSE).
+// onToken    - called for each word/token as it arrives
+// onCitation - called for each source citation after the answer
+// onDone     - called once the stream is fully complete
+// onHopTrace - called when the retrieve step completes (optional)
+export async function streamCompare(
+    request: CompareRequest,
+    onToken: (token: string) => void,
+    onCitation: (c: CitationChunk) => void,
+    onDone: () => void,
+    onHopTrace?: (h: HopTraceEvent) => void,
+) {
+    const res = await fetch(BASE_URL + "/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+    })
+    if (!res.ok) throw new Error(await res.text())
+
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const events = buffer.split("\n\n")
+        buffer = events.pop() ?? ""
+        for (const event of events) {
+            if (!event.startsWith("data: ")) continue
+            const data = JSON.parse(event.slice(6))
+            if (data.type === "token") onToken(data.content)
+            else if (data.type === "citation") onCitation(data as CitationChunk)
+            else if (data.type === "hop_trace") onHopTrace?.({ node: data.node, data: data.data })
+            else if (data.type === "done") onDone()
+        }
+    }
+}

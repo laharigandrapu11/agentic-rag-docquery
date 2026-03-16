@@ -1,15 +1,22 @@
 "use client"
 
 // Home page — three-panel layout: upload + document list on the left, chat on the right
+// Extended in F6 — selectedIds state drives SummarizeCompare panel
 
 import { useState } from "react"
 import FileUpload from "@/components/FileUpload"
 import DocumentList from "@/components/DocumentList"
 import ChatInterface from "@/components/ChatInterface"
+import SummarizeCompare from "@/components/SummarizeCompare"
+import { DocumentMeta } from "@/lib/api"
 
 export default function Home() {
   // Incremented on each successful upload so DocumentList knows to refresh
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  // Tracks which doc_ids the user has checked in DocumentList
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  // Mirror of the document list so SummarizeCompare can display filenames
+  const [documents, setDocuments] = useState<DocumentMeta[]>([])
 
   return (
     <div className="min-h-screen bg-background">
@@ -29,10 +36,20 @@ export default function Home() {
       {/* Main layout: narrow left sidebar for docs, wide right area for chat */}
       <main className="max-w-6xl mx-auto px-8 py-8 flex gap-6 items-start">
 
-        {/* Left column: upload a file/URL and see the list of indexed documents */}
+        {/* Left column: upload, document list with checkboxes, summarize/compare panel */}
         <div className="w-80 flex-shrink-0 flex flex-col gap-4">
           <FileUpload onUploadSuccess={() => setRefreshTrigger((p) => p + 1)} />
-          <DocumentList refreshTrigger={refreshTrigger} />
+          <DocumentList
+            refreshTrigger={refreshTrigger}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            onDocumentsLoaded={setDocuments}
+          />
+          <SummarizeCompare
+            documents={documents}
+            selectedIds={selectedIds}
+            provider="groq"
+          />
         </div>
 
         {/* Right column: chat interface to ask questions about the documents */}
