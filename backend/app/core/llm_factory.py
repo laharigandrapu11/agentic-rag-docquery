@@ -9,7 +9,7 @@ from langchain_groq import ChatGroq
 # small_model=False → full model (used by decomposer + synthesizer)
 MODELS = {
     "groq":    ("llama-3.1-8b-instant",   "llama-3.3-70b-versatile"),
-    "gemini":  ("gemini-2.0-flash",        "gemini-2.0-flash"),
+    "gemini":  ("gemini-2.5-flash",          "gemini-2.5-flash"),
     "mistral": ("mistral-small-latest",    "mistral-large-latest"),
 }
 
