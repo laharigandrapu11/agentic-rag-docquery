@@ -8,10 +8,10 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from langchain_core.prompts import PromptTemplate
 
-from app.schemas import QueryRequest, CitationChunk
+from app.schemas import QueryRequest, CitationChunk, SummarizeRequest, CompareRequest
 from app.core.llm_factory import get_llm
-from app.agent.prompts import QA_PROMPT
-from app.agent.graph import compiled_graph
+from app.agent.graph import compiled_graph, summarize_graph, compare_graph
+from app.agent.prompts import QA_PROMPT, SUMMARIZE_REDUCE_PROMPT, COMPARE_PROMPT
 
 router = APIRouter()
 
@@ -92,6 +92,104 @@ async def query(request: QueryRequest):
         # ----------------------------------------------------------------
         # Step 5: signal done (identical to F3)
         # ----------------------------------------------------------------
+        yield 'data: {"type": "done"}\n\n'
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+@router.post("/summarize")
+async def summarize(request: SummarizeRequest):
+
+    async def event_stream():
+        initial_state = {
+            "doc_id": request.doc_id,
+            "provider": request.provider,
+            "chunks": [],
+            "chunk_summaries": [],
+            "hop_traces": [],
+        }
+        final_state = dict(initial_state)
+
+        # Run map step — small model summarizes each batch of chunks
+        async for updates in summarize_graph.astream(initial_state, stream_mode="updates"):
+            for node_name, node_output in updates.items():
+                final_state.update(node_output)
+                hop_entries = node_output.get("hop_traces", [])
+                if hop_entries:
+                    latest = hop_entries[-1]
+                    yield f'data: {json.dumps({"type": "hop_trace", "node": latest["node"], "data": latest["data"]})}\n\n'
+
+        # Stream reduce step — full model merges batch summaries into final summary
+        summaries_text = "\n\n".join(
+            f"[Part {i + 1}] {s}"
+            for i, s in enumerate(final_state.get("chunk_summaries", []))
+        )
+        llm = get_llm(request.provider)
+        prompt = PromptTemplate(
+            template=SUMMARIZE_REDUCE_PROMPT,
+            input_variables=["summaries"],
+        )
+        chain = prompt | llm
+
+        async for token in chain.astream({"summaries": summaries_text}):
+            yield f'data: {json.dumps({"type": "token", "content": token.content})}\n\n'
+
+        yield 'data: {"type": "done"}\n\n'
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.post("/compare")
+async def compare(request: CompareRequest):
+
+    async def event_stream():
+        initial_state = {
+            "doc_ids": request.doc_ids,
+            "question": request.question,
+            "provider": request.provider,
+            "top_k": request.top_k,
+            "retrieved_chunks": [],
+            "hop_traces": [],
+        }
+        final_state = dict(initial_state)
+
+        # Run compare retrieve node — filtered semantic search across doc_ids
+        async for updates in compare_graph.astream(initial_state, stream_mode="updates"):
+            for node_name, node_output in updates.items():
+                final_state.update(node_output)
+                hop_entries = node_output.get("hop_traces", [])
+                if hop_entries:
+                    latest = hop_entries[-1]
+                    yield f'data: {json.dumps({"type": "hop_trace", "node": latest["node"], "data": latest["data"]})}\n\n'
+
+        # Build numbered context tagged with source doc
+        chunks = final_state.get("retrieved_chunks", [])
+        context = "\n\n".join(
+            f"[{i + 1}] [Source: {c.get('source', '')}, Doc: {c.get('doc_id', '')}, Page: {c.get('page', '?')}]\n{c.get('text', '')}"
+            for i, c in enumerate(chunks)
+        )
+
+        # Stream comparison synthesis
+        llm = get_llm(request.provider)
+        prompt = PromptTemplate(
+            template=COMPARE_PROMPT,
+            input_variables=["context", "question"],
+        )
+        chain = prompt | llm
+
+        async for token in chain.astream({"context": context, "question": request.question}):
+            yield f'data: {json.dumps({"type": "token", "content": token.content})}\n\n'
+
+        # Emit citations
+        for chunk in chunks:
+            citation = CitationChunk(
+                doc_id=chunk.get("doc_id", ""),
+                source=chunk.get("source", ""),
+                page=str(chunk.get("page", "")),
+                chunk_index=chunk.get("chunk_index", 0),
+                text=chunk.get("text", ""),
+            )
+            yield f'data: {json.dumps({"type": "citation", **citation.model_dump()})}\n\n'
+
         yield 'data: {"type": "done"}\n\n'
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

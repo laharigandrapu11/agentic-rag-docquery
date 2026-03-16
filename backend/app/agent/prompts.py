@@ -39,3 +39,40 @@ Rules:
 Question: {question}
 
 Sub-questions:"""
+
+
+# Extended in F6 - Summarize and Compare
+
+SUMMARIZE_MAP_PROMPT = """\
+Summarize the following document excerpt concisely in 3-5 sentences, \
+preserving key facts, figures, and conclusions.
+
+Excerpt:
+{chunks}
+
+Summary:"""
+
+SUMMARIZE_REDUCE_PROMPT = """\
+You are given several partial summaries of different sections of the same document.
+Combine them into one coherent, well-structured final summary.
+Do not repeat information. Write in clear, flowing prose.
+
+Partial summaries:
+{summaries}
+
+Final summary:"""
+
+COMPARE_PROMPT = """\
+You are a research analyst. Compare the documents based on the provided context.
+Each context block is numbered and tagged with its source document.
+When you use information from a block, cite it inline as [Source N].
+Highlight similarities, differences, and any notable contrasts.
+If a point only appears in one document, say so explicitly.
+If the answer cannot be determined from the context, say so.
+
+Context:
+{context}
+
+Question: {question}
+
+Comparison:"""

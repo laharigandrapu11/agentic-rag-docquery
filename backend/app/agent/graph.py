@@ -4,7 +4,7 @@ from typing import TypedDict
 
 from langgraph.graph import StateGraph, START, END
 
-from app.agent.nodes import router_node, decomposer_node, rag_retrieve_node
+from app.agent.nodes import router_node, decomposer_node, rag_retrieve_node, map_summarize_node, compare_retrieve_node
 
 
 class AgentState(TypedDict):
@@ -59,5 +59,35 @@ def build_graph():
     # and locks it into a runnable object
     return graph.compile()
 
+class SummarizeState(TypedDict):
+    doc_id: str
+    provider: str
+    chunks: list[dict]
+    chunk_summaries: list[str]
+    hop_traces: list[dict]
 
+class CompareState(TypedDict):
+    doc_ids: list[str]
+    question: str
+    provider: str
+    top_k: int
+    retrieved_chunks: list[dict]
+    hop_traces: list[dict]
+
+def build_summarize_graph():
+    g = StateGraph(SummarizeState)
+    g.add_node("map_summarize", map_summarize_node)
+    g.add_edge(START, "map_summarize")
+    g.add_edge("map_summarize", END)
+    return g.compile()
+    
+def build_compare_graph():
+    g = StateGraph(CompareState)
+    g.add_node("compare_retrieve", compare_retrieve_node)
+    g.add_edge(START, "compare_retrieve")
+    g.add_edge("compare_retrieve", END)
+    return g.compile()
+
+summarize_graph = build_summarize_graph()
+compare_graph = build_compare_graph()
 compiled_graph = build_graph()

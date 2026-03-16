@@ -10,9 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface Props {
   refreshTrigger: number
+  selectedIds: string[]
+  onSelectionChange: (ids: string[]) => void
+  onDocumentsLoaded: (docs: DocumentMeta[]) => void
 }
 
-export default function DocumentList({ refreshTrigger }: Props) {
+export default function DocumentList({ refreshTrigger, selectedIds, onSelectionChange, onDocumentsLoaded }: Props) {
   const [docs, setDocs] = useState<DocumentMeta[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -22,11 +25,21 @@ export default function DocumentList({ refreshTrigger }: Props) {
     setLoading(true)
     setError(null)
     try {
-      setDocs(await getDocuments())
+      const fetched = await getDocuments()
+      setDocs(fetched)
+      onDocumentsLoaded(fetched)
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  function toggleSelect(doc_id: string) {
+    if (selectedIds.includes(doc_id)) {
+      onSelectionChange(selectedIds.filter((id) => id !== doc_id))
+    } else {
+      onSelectionChange([...selectedIds, doc_id])
     }
   }
 
@@ -94,6 +107,13 @@ export default function DocumentList({ refreshTrigger }: Props) {
             className="flex items-center justify-between rounded-lg border bg-card px-4 py-3 hover:bg-muted/50 transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">
+              {/* Selection checkbox */}
+              <input
+                type="checkbox"
+                className="accent-primary flex-shrink-0 cursor-pointer"
+                checked={selectedIds.includes(doc.doc_id)}
+                onChange={() => toggleSelect(doc.doc_id)}
+              />
               {/* File icon */}
               <div className="rounded-md bg-primary/10 p-1.5 flex-shrink-0">
                 <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">

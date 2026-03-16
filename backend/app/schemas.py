@@ -33,3 +33,15 @@ class CitationChunk(BaseModel):
     page: str        # page number as string (PDFs return it as string)
     chunk_index: int
     text: str        # the actual chunk text shown in the citation panel
+
+
+class SummarizeRequest(BaseModel):
+    doc_id: str
+    session_id: str | None = None
+    provider: str = "groq"
+
+class CompareRequest(BaseModel):
+    doc_ids: list[str]
+    question: str
+    provider: str = "groq"
+    top_k: int = 5

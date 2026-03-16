@@ -13,9 +13,11 @@ interface HopTraceProps {
 
 // Human-readable label and icon for each node name
 const NODE_META: Record<string, { label: string; icon: string }> = {
-    router:       { label: "Router",    icon: "⇢" },
-    decomposer:   { label: "Decomposer", icon: "⊕" },
-    rag_retrieve: { label: "Retriever", icon: "⊙" },
+    router:           { label: "Router",      icon: "⇢" },
+    decomposer:       { label: "Decomposer",  icon: "⊕" },
+    rag_retrieve:     { label: "Retriever",   icon: "⊙" },
+    map_summarize:    { label: "Summarizer",  icon: "⊞" },
+    compare_retrieve: { label: "Retriever",   icon: "⊙" },
 }
 
 // Render the node-specific detail line under each hop
@@ -52,6 +54,30 @@ function HopDetail({ node, data }: HopTraceEvent) {
                 Retrieved{" "}
                 <span className="font-semibold text-foreground">{data.chunks_found as number}</span>
                 {" "}unique chunks
+            </p>
+        )
+    }
+
+    if (node === "map_summarize") {
+        return (
+            <p className="text-xs text-muted-foreground mt-0.5">
+                Summarized{" "}
+                <span className="font-semibold text-foreground">{data.total_chunks as number}</span>
+                {" "}chunks across{" "}
+                <span className="font-semibold text-foreground">{data.batches as number}</span>
+                {" "}batches
+            </p>
+        )
+    }
+
+    if (node === "compare_retrieve") {
+        return (
+            <p className="text-xs text-muted-foreground mt-0.5">
+                Retrieved{" "}
+                <span className="font-semibold text-foreground">{data.chunks_found as number}</span>
+                {" "}chunks across{" "}
+                <span className="font-semibold text-foreground">{(data.doc_ids as string[]).length}</span>
+                {" "}documents
             </p>
         )
     }
