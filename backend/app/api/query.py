@@ -12,6 +12,7 @@ from app.schemas import QueryRequest, CitationChunk, SummarizeRequest, CompareRe
 from app.core.llm_factory import get_llm
 from app.agent.graph import compiled_graph, summarize_graph, compare_graph
 from app.agent.prompts import QA_PROMPT, SUMMARIZE_REDUCE_PROMPT, COMPARE_PROMPT
+from app.agent.memory import get_history, append_turn, clear_session as _clear_session
 
 router = APIRouter()
 
@@ -29,6 +30,15 @@ async def query(request: QueryRequest):
         # so the frontend sees the reasoning chain building up in real time
         # before the first answer token arrives.
         # ----------------------------------------------------------------
+                # Load prior turns for this session to give the LLM conversation context
+        history = get_history(request.session_id) if request.session_id else []
+        history_text = (
+            "\n".join(
+                f"{'User' if t['role'] == 'user' else 'Assistant'}: {t['content']}"
+                for t in history
+            )
+            if history else "(no previous conversation)"
+        )
         initial_state = {
             "question": request.question,
             "provider": request.provider,
@@ -37,6 +47,7 @@ async def query(request: QueryRequest):
             "sub_questions": [],
             "retrieved_chunks": [],
             "hop_traces": [],
+            "doc_ids": request.doc_ids,  # None = search all docs; list = filter to selected docs
         }
 
         # final_state accumulates the full state as nodes complete
@@ -70,10 +81,13 @@ async def query(request: QueryRequest):
         # (routing=False is the default so small_model=False not needed)
         # ----------------------------------------------------------------
         llm = get_llm(request.provider)
-        prompt = PromptTemplate(template=QA_PROMPT, input_variables=["context", "question"])
+        prompt = PromptTemplate(template=QA_PROMPT, input_variables=["context", "question", "history"])
         chain = prompt | llm
 
-        async for token in chain.astream({"context": context, "question": request.question}):
+        # Accumulate the full answer so we can save it to memory after streaming
+        full_answer = ""
+        async for token in chain.astream({"context": context, "question": request.question, "history": history_text}):
+            full_answer += token.content
             yield f'data: {json.dumps({"type": "token", "content": token.content})}\n\n'
 
         # ----------------------------------------------------------------
@@ -90,8 +104,12 @@ async def query(request: QueryRequest):
             yield f'data: {json.dumps({"type": "citation", **citation.model_dump()})}\n\n'
 
         # ----------------------------------------------------------------
-        # Step 5: signal done (identical to F3)
+        # Step 5: save turn to memory, then signal done
         # ----------------------------------------------------------------
+        if request.session_id:
+            append_turn(request.session_id, "user", request.question)
+            append_turn(request.session_id, "assistant", full_answer)
+
         yield 'data: {"type": "done"}\n\n'
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
@@ -193,3 +211,9 @@ async def compare(request: CompareRequest):
         yield 'data: {"type": "done"}\n\n'
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+@router.delete("/session/{session_id}")
+def clear_session_endpoint(session_id: str):
+    """Clears all conversation history for a session — triggered by 'New session' button."""
+    _clear_session(session_id)
+    return {"cleared": session_id}

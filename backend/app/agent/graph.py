@@ -11,10 +11,11 @@ class AgentState(TypedDict):
     question: str
     provider: str
     top_k: int
-    route: str                    # set by router_node: "simple" | "complex"
-    sub_questions: list[str]      # set by decomposer_node
-    retrieved_chunks: list[dict]  # set by rag_retrieve_node
-    hop_traces: list[dict]        # each node appends one entry
+    route: str                        # set by router_node: "simple" | "complex"
+    sub_questions: list[str]          # set by decomposer_node
+    retrieved_chunks: list[dict]      # set by rag_retrieve_node
+    hop_traces: list[dict]            # each node appends one entry
+    doc_ids: list[str] | None         # if set, retrieval is filtered to these doc_ids
 
 
 def _route_decision(state: AgentState) -> str:

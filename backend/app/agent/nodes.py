@@ -80,19 +80,23 @@ def rag_retrieve_node(state: dict) -> dict:
     No LLM involved — purely a Qdrant vector search.
     """
     top_k = state.get("top_k", 5)
+    doc_ids = state.get("doc_ids") or None  # None means search all docs
 
     if state.get("route") == "complex" and state.get("sub_questions"):
         seen: set[str] = set()
         merged: list[dict] = []
         for sq in state["sub_questions"]:
-            for chunk in rag_search(sq, top_k):
+            # Use filtered search if doc_ids provided, otherwise search all docs
+            chunks = filtered_rag_search(sq, doc_ids, top_k) if doc_ids else rag_search(sq, top_k)
+            for chunk in chunks:
                 text = chunk.get("text", "")
                 if text not in seen:
                     seen.add(text)
                     merged.append(chunk)
         retrieved = merged
     else:
-        retrieved = rag_search(state["question"], top_k)
+        # Use filtered search if doc_ids provided, otherwise search all docs
+        retrieved = filtered_rag_search(state["question"], doc_ids, top_k) if doc_ids else rag_search(state["question"], top_k)
 
     return {
         "retrieved_chunks": retrieved,

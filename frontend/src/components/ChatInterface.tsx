@@ -4,9 +4,10 @@
 // Extended in F3 — tokens stream in live, citations appear after the answer
 // Extended in F4 — hop_trace events build up the reasoning chain in real time
 // Extended in F5 — provider selector lets user switch LLM mid-session
+// Extended in F7 — session_id tracks conversation memory; New session button resets it
 
 import { useState, useRef, useEffect } from "react"
-import { streamQuery, CitationChunk, HopTraceEvent, switchProvider } from "@/lib/api"
+import { streamQuery, CitationChunk, HopTraceEvent, switchProvider, clearSession } from "@/lib/api"
 import MessageBubble from "@/components/MessageBubble"
 import ProviderSelector from "@/components/ProviderSelector"
 
@@ -18,7 +19,13 @@ interface Message {
     hopTraces: HopTraceEvent[]  // reasoning chain steps collected during streaming
 }
 
-export default function ChatInterface() {
+interface Props {
+    // doc_ids from the checked documents in DocumentList.
+    // Empty array = search all docs; non-empty = filter to selected docs only.
+    docIds?: string[]
+}
+
+export default function ChatInterface({ docIds = [] }: Props) {
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState("")
     const [loading, setLoading] = useState(false)
@@ -36,6 +43,22 @@ export default function ChatInterface() {
         } catch {
             // non-fatal — local state still updated, query will pass provider explicitly
         }
+    }
+
+    // session_id is stable for the lifetime of this tab — generated once on mount.
+    // A new UUID is assigned when the user clicks "New session".
+    const sessionIdRef = useRef<string>(crypto.randomUUID())
+
+    // Clears backend memory and resets the UI for a fresh conversation
+    async function handleNewSession() {
+        try {
+            await clearSession(sessionIdRef.current)
+        } catch {
+            // non-fatal — reset locally even if the backend call fails
+        }
+        sessionIdRef.current = crypto.randomUUID()
+        setMessages([])
+        setError(null)
     }
 
     // Auto-scroll to the bottom after each message update
@@ -60,7 +83,13 @@ export default function ChatInterface() {
 
         try {
             await streamQuery(
-                { question, provider },
+                {
+                    question,
+                    provider,
+                    session_id: sessionIdRef.current,
+                    // only send doc_ids when user has selected specific documents
+                    doc_ids: docIds.length > 0 ? docIds : undefined,
+                },
                 // onToken — append each new token to the last (assistant) message
                 (token) => {
                     setMessages((prev) => {
@@ -106,9 +135,24 @@ export default function ChatInterface() {
     return (
         <div className="flex flex-col h-[600px] border rounded-xl bg-card overflow-hidden">
 
-            {/* Provider switcher pinned to the top of the chat panel */}
-            <div className="border-b px-4 py-2 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Model</span>
+            {/* Header bar: New session button, optional doc-filter badge, provider switcher */}
+            <div className="border-b px-4 py-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    {/* Starts a fresh conversation — clears backend memory and resets the UI */}
+                    <button
+                        onClick={handleNewSession}
+                        disabled={loading}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 flex-shrink-0"
+                    >
+                        + New session
+                    </button>
+                    {/* Shows when queries are scoped to specific documents */}
+                    {docIds.length > 0 && (
+                        <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 flex-shrink-0">
+                            {docIds.length} doc{docIds.length > 1 ? "s" : ""} selected
+                        </span>
+                    )}
+                </div>
                 {/* Disabled while a query is loading to prevent mid-stream provider changes */}
                 <ProviderSelector provider={provider} onChange={handleProviderChange} disabled={loading} />
             </div>

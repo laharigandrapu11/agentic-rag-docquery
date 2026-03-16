@@ -59,8 +59,10 @@ export async function deleteDocument(doc_id: string): Promise<DeleteResponse> {
 // Shape of the question payload sent to POST /query
 export interface QueryRequest {
     question: string
-    provider?: string  // defaults to "groq" on the backend
-    top_k?: number     // how many chunks to retrieve, defaults to 5
+    provider?: string   // defaults to "groq" on the backend
+    top_k?: number      // how many chunks to retrieve, defaults to 5
+    session_id?: string // identifies the conversation session for memory (F7)
+    doc_ids?: string[]  // if set, retrieval is scoped to only these documents
 }
 
 // A single citation chunk streamed back after the answer tokens
@@ -172,6 +174,21 @@ export interface CompareRequest {
     provider?: string
     top_k?: number
 }
+
+// --- Conversation Memory (F7) ---
+
+// Clears all conversation history for a session on the backend.
+// Called when the user clicks "New session" to start a fresh conversation
+// without the LLM seeing previous turns as context.
+export async function clearSession(session_id: string): Promise<{ cleared: string }> {
+    const res = await fetch(BASE_URL + "/session/" + session_id, {
+        method: "DELETE",
+    })
+    if (!res.ok) throw new Error(await res.text())
+    return res.json()
+}
+
+// --- Summarize and Compare (F6) ---
 
 // Streams a document summary token by token from POST /summarize (SSE).
 // onToken    - called for each word/token as it arrives
