@@ -30,8 +30,7 @@ jobs:
       - name: Run backend tests
         run: |
           cd backend
-          # pytest tests/ -v
-          echo "Backend tests placeholder - add pytest in F1+"
+          pytest tests/ -v
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -99,6 +98,7 @@ jobs:
             GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
             MISTRAL_API_KEY=${{ secrets.MISTRAL_API_KEY }}
             QDRANT_URL=${{ secrets.QDRANT_URL }}
+            QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
             DEFAULT_PROVIDER=groq
 
       - name: Deploy frontend to Cloud Run

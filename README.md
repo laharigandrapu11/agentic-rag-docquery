@@ -375,14 +375,61 @@ Full interactive documentation is available at /docs.
 
 The project deploys automatically to Google Cloud Run on every push to main.
 
+### Prerequisites
+
+1. **Google Cloud Project**
+   - Create a project at https://console.cloud.google.com
+   - Enable the following APIs:
+     - Cloud Run API
+     - Container Registry API
+     - Cloud Build API
+   - Note your project ID
+
+2. **Service Account**
+   - Go to IAM & Admin → Service Accounts
+   - Create a new service account with these roles:
+     - Cloud Run Admin
+     - Storage Admin (for GCR)
+   - Generate a JSON key and save it securely
+
+3. **Qdrant Cloud**
+   - Sign up at https://cloud.qdrant.io
+   - Create a free cluster (0.5GB, sufficient for testing)
+   - Copy the cluster URL (e.g., `https://xyz.qdrant.io:6333`)
+   - Copy the API key from the cluster dashboard
+
 ### Required GitHub Secrets
 
-- GCP_PROJECT_ID
-- GCP_SA_KEY (service account JSON with Cloud Run and GCR permissions)
-- GROQ_API_KEY
-- GOOGLE_API_KEY
-- MISTRAL_API_KEY
-- QDRANT_URL
+Go to your repository → Settings → Secrets and variables → Actions, and add:
+
+| Secret Name       | Value                                                      |
+|-------------------|------------------------------------------------------------|
+| GCP_PROJECT_ID    | Your Google Cloud project ID                               |
+| GCP_SA_KEY        | Full JSON content of the service account key               |
+| GROQ_API_KEY      | API key from https://console.groq.com                      |
+| GOOGLE_API_KEY    | API key from https://aistudio.google.com/app/apikey        |
+| MISTRAL_API_KEY   | API key from https://console.mistral.ai                    |
+| QDRANT_URL        | Qdrant Cloud cluster URL (e.g., `https://xyz.qdrant.io:6333`) |
+| QDRANT_API_KEY    | Qdrant Cloud API key                                       |
+| BACKEND_URL       | Set this AFTER the first deploy (see below)                |
+
+### Deployment Steps
+
+1. Push to `main` to trigger the workflow:
+   ```bash
+   git push origin main
+   ```
+
+2. Monitor the deploy at Actions → Deploy
+
+3. After the first successful deploy:
+   - Go to Cloud Run console
+   - Find the `rag-backend` service
+   - Copy the service URL (e.g., `https://rag-backend-xyz.a.run.app`)
+   - Add it as the `BACKEND_URL` secret in GitHub
+   - Push again to redeploy the frontend with the correct backend URL
+
+4. Access your live app at the `rag-frontend` Cloud Run service URL
 
 ### Pipeline Steps
 

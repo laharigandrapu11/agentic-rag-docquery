@@ -8,7 +8,10 @@ from app.schemas import DocumentMeta
 
 
 def get_qdrant_client()->QdrantClient:
-    client = QdrantClient(url=settings.qdrant_url)
+    client = QdrantClient(
+        url=settings.qdrant_url,
+        api_key=settings.qdrant_api_key or None,
+    )
     if not client.collection_exists(settings.qdrant_collection_name):
         client.create_collection(
             collection_name=settings.qdrant_collection_name,
