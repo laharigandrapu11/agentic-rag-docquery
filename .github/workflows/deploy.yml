@@ -88,18 +88,19 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Deploy backend to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: rag-backend
-          image: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-          region: us-central1
-          env_vars: |
-            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-            GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
-            MISTRAL_API_KEY=${{ secrets.MISTRAL_API_KEY }}
-            QDRANT_URL=${{ secrets.QDRANT_URL }}
-            QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
-            DEFAULT_PROVIDER=groq
+              uses: google-github-actions/deploy-cloudrun@v2
+              with:
+                service: rag-backend
+                image: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+                region: us-central1
+                flags: '--cpu=2 --memory=2Gi --timeout=300'
+                env_vars: |
+                  GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+                  GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
+                  MISTRAL_API_KEY=${{ secrets.MISTRAL_API_KEY }}
+                  QDRANT_URL=${{ secrets.QDRANT_URL }}
+                  QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
+                  DEFAULT_PROVIDER=groq
 
       - name: Deploy frontend to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
