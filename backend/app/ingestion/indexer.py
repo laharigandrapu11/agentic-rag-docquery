@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.schemas import DocumentMeta
 
 
-def get_qdrant_client()->QdrantClient:
+def get_qdrant_client() -> QdrantClient:
     client = QdrantClient(
         url=settings.qdrant_url,
         api_key=settings.qdrant_api_key or None,
@@ -17,6 +17,13 @@ def get_qdrant_client()->QdrantClient:
             collection_name=settings.qdrant_collection_name,
             vectors_config=VectorParams(size=384, distance=Distance.COSINE),
         )
+    # Ensure payload index exists for filtered search
+    client.create_payload_index(
+        collection_name=settings.qdrant_collection_name,
+        field_name="doc_id",
+        field_schema="keyword",
+        wait=False,
+    )
     return client
 
 
