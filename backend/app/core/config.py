@@ -20,11 +20,15 @@ class Settings(BaseSettings):
     # Memory
     sqlite_db_path: str = "memory.db"
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    # CORS — comma-separated string instead of list to avoid JSON parsing issues
+    cors_origins: str = "http://localhost:3000"
 
     # Default active LLM provider
     default_provider: str = "groq"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",")]
 
 
 settings = Settings()
