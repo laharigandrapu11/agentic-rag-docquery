@@ -1,4 +1,4 @@
-# Agentic RAG DocQuery
+# Agentic RAG DocQuery 
 
 A production-grade, agentic Retrieval-Augmented Generation (RAG) system for
 intelligent document querying. Upload documents in multiple formats, ask complex
