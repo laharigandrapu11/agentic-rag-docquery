@@ -18,7 +18,9 @@ export interface DeleteResponse {
     deleted: boolean
 }
 
-const BASE_URL = "http://localhost:8000/api"
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : "http://localhost:8000/api"
 
 export async function uploadFile(file: File): Promise<UploadResponse> {
     const formData = new FormData()

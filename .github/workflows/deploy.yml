@@ -14,7 +14,6 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -51,7 +50,6 @@ jobs:
     name: Build and Push Images
     runs-on: ubuntu-latest
     needs: test
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -80,7 +78,6 @@ jobs:
     name: Deploy to Cloud Run
     runs-on: ubuntu-latest
     needs: build-push
-
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -93,7 +90,7 @@ jobs:
           service: rag-backend
           image: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
           region: us-central1
-          flags: '--cpu=2 --memory=2Gi --timeout=300'
+          flags: '--cpu=2 --memory=2Gi --timeout=300 --max-instances=1'
           env_vars: |
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
@@ -101,6 +98,7 @@ jobs:
             QDRANT_URL=${{ secrets.QDRANT_URL }}
             QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
             DEFAULT_PROVIDER=groq
+            CORS_ORIGINS=["${{ secrets.FRONTEND_URL }}","http://localhost:3000"]
 
       - name: Deploy frontend to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2

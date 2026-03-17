@@ -1,5 +1,6 @@
 # Populated in F1 - Document Upload and Ingestion
 import os
+import uuid, os
 from uuid import uuid4
 import aiofiles
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
@@ -20,7 +21,7 @@ async def upload_document(file: UploadFile = File(None), url: str = Form(None)):
         raise HTTPException(status_code=400, detail="No file or URL provided")
     doc_id = str(uuid4())
     if file:
-        tmp_path = f"/tmp/{file.filename}"
+        tmp_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
         async with aiofiles.open(tmp_path, "wb") as f:
             content = await file.read()
             await f.write(content)
