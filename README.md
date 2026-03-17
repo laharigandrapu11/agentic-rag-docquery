@@ -36,7 +36,12 @@ documents in multiple formats, and inspect the full reasoning chain the agent
 used to arrive at an answer.
 
 ---
+## Live Demo
 
+- **App:** https://rag-frontend-160755750721.us-central1.run.app
+- **API Docs:** https://rag-backend-160755750721.us-central1.run.app/docs
+
+---
 ## Features 
 
 - Multi-format document ingestion: PDF, DOCX, Markdown, plain text, and web URLs
@@ -398,20 +403,17 @@ The project deploys automatically to Google Cloud Run on every push to main.
    - Copy the cluster URL (e.g., `https://xyz.qdrant.io:6333`)
    - Copy the API key from the cluster dashboard
 
-### Required GitHub Secrets
-
-Go to your repository → Settings → Secrets and variables → Actions, and add:
-
-| Secret Name       | Value                                                      |
-|-------------------|------------------------------------------------------------|
-| GCP_PROJECT_ID    | Your Google Cloud project ID                               |
-| GCP_SA_KEY        | Full JSON content of the service account key               |
-| GROQ_API_KEY      | API key from https://console.groq.com                      |
-| GOOGLE_API_KEY    | API key from https://aistudio.google.com/app/apikey        |
-| MISTRAL_API_KEY   | API key from https://console.mistral.ai                    |
+| Secret Name       | Value                                                         |
+|-------------------|---------------------------------------------------------------|
+| GCP_PROJECT_ID    | Your Google Cloud project ID                                  |
+| GCP_SA_KEY        | Full JSON content of the service account key                  |
+| GROQ_API_KEY      | API key from https://console.groq.com                         |
+| GOOGLE_API_KEY    | API key from https://aistudio.google.com/app/apikey           |
+| MISTRAL_API_KEY   | API key from https://console.mistral.ai                       |
 | QDRANT_URL        | Qdrant Cloud cluster URL (e.g., `https://xyz.qdrant.io:6333`) |
-| QDRANT_API_KEY    | Qdrant Cloud API key                                       |
-| BACKEND_URL       | Set this AFTER the first deploy (see below)                |
+| QDRANT_API_KEY    | Qdrant Cloud API key                                          |
+| BACKEND_URL       | Cloud Run backend URL — add after first successful deploy     |
+| FRONTEND_URL      | Cloud Run frontend URL — add after first successful deploy    |
 
 ### Deployment Steps
 
@@ -430,6 +432,26 @@ Go to your repository → Settings → Secrets and variables → Actions, and ad
    - Push again to redeploy the frontend with the correct backend URL
 
 4. Access your live app at the `rag-frontend` Cloud Run service URL
+
+### Important Notes
+
+- Cloud Run services require IAM permissions for public access. Run once after first deploy:
+```bash
+  gcloud run services add-iam-policy-binding rag-frontend \
+    --region us-central1 --member="allUsers" --role="roles/run.invoker"
+
+  gcloud run services add-iam-policy-binding rag-backend \
+    --region us-central1 --member="allUsers" --role="roles/run.invoker"
+```
+
+- `NEXT_PUBLIC_API_URL` is baked into the frontend at **build time** — the
+  frontend image must be rebuilt after adding `BACKEND_URL` to secrets.
+
+- `CORS_ORIGINS` is a comma-separated string (not JSON). Example:
+  `https://rag-frontend-xyz.a.run.app,http://localhost:3000`
+
+- Qdrant requires a payload index on `doc_id` for filtered search. This is
+  created automatically on backend startup.
 
 ### Pipeline Steps
 
