@@ -9,7 +9,7 @@ agent and your choice of LLM provider.
 
 ## Table of Contents
 
-- [Overview](#overview)
+- [Overview](#overview) 
 - [Features](#features)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
