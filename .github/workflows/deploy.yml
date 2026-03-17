@@ -98,7 +98,7 @@ jobs:
             QDRANT_URL=${{ secrets.QDRANT_URL }}
             QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
             DEFAULT_PROVIDER=groq
-            CORS_ORIGINS=["${{ secrets.FRONTEND_URL }}","http://localhost:3000"]
+            CORS_ORIGINS=${{ secrets.FRONTEND_URL }},http://localhost:3000
 
       - name: Deploy frontend to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
