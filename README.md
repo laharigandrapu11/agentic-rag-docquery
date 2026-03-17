@@ -14,7 +14,7 @@ agent and your choice of LLM provider.
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Why This Stack](#why-this-stack)
-- [Tradeoffs](#tradeoffs)
+- [Tradeoffs](#tradeoffs) 
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [API Reference](#api-reference)
