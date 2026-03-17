@@ -37,7 +37,7 @@ used to arrive at an answer.
 
 ---
 
-## Features
+## Features 
 
 - Multi-format document ingestion: PDF, DOCX, Markdown, plain text, and web URLs
 - Semantic search using sentence-transformers embeddings stored in Qdrant
