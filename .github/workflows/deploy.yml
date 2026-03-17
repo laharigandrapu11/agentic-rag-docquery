@@ -69,10 +69,14 @@ jobs:
           docker push $BACKEND_IMAGE:latest
 
       - name: Build and push frontend image
-        run: |
-          docker build -t $FRONTEND_IMAGE:$GITHUB_SHA -t $FRONTEND_IMAGE:latest ./frontend
-          docker push $FRONTEND_IMAGE:$GITHUB_SHA
-          docker push $FRONTEND_IMAGE:latest
+              run: |
+                docker build \
+                  --build-arg NEXT_PUBLIC_API_URL=${{ secrets.BACKEND_URL }} \
+                  -t $FRONTEND_IMAGE:$GITHUB_SHA \
+                  -t $FRONTEND_IMAGE:latest \
+                  ./frontend
+                docker push $FRONTEND_IMAGE:$GITHUB_SHA
+                docker push $FRONTEND_IMAGE:latest
 
   deploy:
     name: Deploy to Cloud Run
