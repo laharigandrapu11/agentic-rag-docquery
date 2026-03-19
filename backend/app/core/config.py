@@ -1,9 +1,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import os
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
+    model_config = SettingsConfigDict(
+        env_file=".env" if os.getenv("APP_ENV", "development") != "production" else None,
+        extra="ignore",
+    )
     # LLM providers
     groq_api_key: str = ""
     google_api_key: str = ""

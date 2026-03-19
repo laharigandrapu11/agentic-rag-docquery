@@ -6,6 +6,9 @@ from app.api.provider import router as provider_router
 from app.core.config import settings
 from app.core.llm_factory import MODELS
 
+from fastapi import Request
+from app.security.rate_limiter import enforce_rate_limit
+
 app = FastAPI(
     title="Agentic RAG DocQuery",
     description="Agentic RAG-based document query system with multi-hop reasoning.",
@@ -26,7 +29,9 @@ app.include_router(query_router, prefix="/api", tags=["Query"])
 
 
 @app.get("/health", tags=["Health"])
-async def health():
+async def health(request: Request):
+        # Rate limit: 30 requests per minute per IP
+    enforce_rate_limit(request=request, key_suffix=None, limit=30, window_seconds=60)
     return {
         "status": "ok",
         "version": "0.1.0",

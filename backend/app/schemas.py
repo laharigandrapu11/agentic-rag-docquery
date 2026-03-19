@@ -1,4 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
+
+class StrictBaseModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 class DocumentMeta(BaseModel):
     doc_id: str
@@ -18,12 +21,12 @@ class DeleteResponse(BaseModel):
     doc_id: str
     deleted: bool
 
-class QueryRequest(BaseModel):
-    question: str
-    provider: str = "groq"
-    top_k: int = 5
-    session_id: str | None = None
-    doc_ids: list[str] | None = None  # if set, retrieval is scoped to only these documents
+class QueryRequest(StrictBaseModel):
+    question: str = Field(..., min_length=1, max_length=4000)
+    provider: str = Field("groq", pattern="^(groq|gemini|mistral)$")
+    top_k: int = Field(5, ge=1, le=10)
+    session_id: str | None = Field(default=None, max_length=128)
+    doc_ids: list[str] | None = Field(default=None, max_length=50)
 
 class QueryResponse(BaseModel):
     answer: str
@@ -37,13 +40,13 @@ class CitationChunk(BaseModel):
     text: str        # the actual chunk text shown in the citation panel
 
 
-class SummarizeRequest(BaseModel):
-    doc_id: str
-    session_id: str | None = None
-    provider: str = "groq"
+class SummarizeRequest(StrictBaseModel):
+    doc_id: str = Field(..., min_length=1, max_length=128)
+    session_id: str | None = Field(default=None, max_length=128)
+    provider: str = Field("groq", pattern="^(groq|gemini|mistral)$")
 
-class CompareRequest(BaseModel):
-    doc_ids: list[str]
-    question: str
-    provider: str = "groq"
-    top_k: int = 5
+class CompareRequest(StrictBaseModel):
+    doc_ids: list[str] = Field(..., min_length=1, max_length=50)
+    question: str = Field(..., min_length=1, max_length=4000)
+    provider: str = Field("groq", pattern="^(groq|gemini|mistral)$")
+    top_k: int = Field(5, ge=1, le=10)
