@@ -4,7 +4,8 @@
 # Extended in F6 - Summarize and Compare
 
 import json
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from app.security.rate_limiter import enforce_rate_limit
 from fastapi.responses import StreamingResponse
 from langchain_core.prompts import PromptTemplate
 
@@ -17,8 +18,14 @@ from app.agent.memory import get_history, append_turn, clear_session as _clear_s
 router = APIRouter()
 
 @router.post("/query")
-async def query(request: QueryRequest):
+async def query(req: Request, request: QueryRequest):
 
+    enforce_rate_limit(
+        request=req,
+        key_suffix=request.session_id,
+        limit=60,
+        window_seconds=60,
+    )
     async def event_stream():
 
         # ----------------------------------------------------------------
@@ -115,8 +122,13 @@ async def query(request: QueryRequest):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 @router.post("/summarize")
-async def summarize(request: SummarizeRequest):
-
+async def summarize(req: Request, request: SummarizeRequest):
+    enforce_rate_limit(
+        request=req,
+        key_suffix=request.session_id,
+        limit=30,
+        window_seconds=60,
+    )
     async def event_stream():
         initial_state = {
             "doc_id": request.doc_id,
@@ -157,8 +169,13 @@ async def summarize(request: SummarizeRequest):
 
 
 @router.post("/compare")
-async def compare(request: CompareRequest):
-
+async def compare(req: Request, request: CompareRequest):
+    enforce_rate_limit(
+        request=req,
+        key_suffix=None,
+        limit=30,
+        window_seconds=60,
+    )
     async def event_stream():
         initial_state = {
             "doc_ids": request.doc_ids,
@@ -213,7 +230,13 @@ async def compare(request: CompareRequest):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 @router.delete("/session/{session_id}")
-def clear_session_endpoint(session_id: str):
+def clear_session_endpoint(req: Request, session_id: str):
+    enforce_rate_limit(
+        request=req,
+        key_suffix=session_id,
+        limit=30,
+        window_seconds=60,
+    )
     """Clears all conversation history for a session — triggered by 'New session' button."""
     _clear_session(session_id)
     return {"cleared": session_id}
